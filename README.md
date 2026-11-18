@@ -4,11 +4,10 @@ A local backend prototype that inspects video files and checks them against
 an example delivery policy. It saves each decision and the reasons for it in
 SQLite so a media operator can look them up later.
 
-## Run the demo
+## Quickstart
 
-Use Python 3.10 or later and install FFmpeg with both `ffmpeg` and `ffprobe`
-available on your terminal's PATH. Install Python dependencies from this
-directory.
+Use Python 3.10 or later and an FFmpeg build with `ffmpeg`, `ffprobe`, and
+the `prores_ks` encoder. Run these commands from the repository root.
 
 ```sh
 python3 -m venv .venv
@@ -16,26 +15,39 @@ python3 -m venv .venv
 .venv/bin/python -m flask --app app:create_app run --port 5056
 ```
 
-In a second terminal, generate two short clips and submit them.
+In a second terminal, generate a MOV and upload it under an MP4 filename.
 
 ```sh
 samples=$(mktemp -d)
-ffmpeg -v error -f lavfi -i color=c=blue:s=160x96:r=24 -frames:v 12 \
-  -c:v libx264 -pix_fmt yuv420p "$samples/ready.mp4"
 ffmpeg -v error -f lavfi -i color=c=red:s=160x96:r=24 -frames:v 12 \
   -c:v prores_ks -pix_fmt yuv422p10le "$samples/review.mov"
-curl -i -F "file=@$samples/ready.mp4" http://127.0.0.1:5056/assets/inspect
 curl -i -F "file=@$samples/review.mov;filename=mislabeled.mp4" \
   http://127.0.0.1:5056/assets/inspect
 ```
 
-Both calls return HTTP 201 because both save an intake decision. The first
-returns `status: ready`. The second reports an MOV container and ProRes codec
-from the file bytes, so it returns `status: needs_review` with two reasons.
-Take either response's `Location` header and open that path with a GET request.
-For example, the first record in a fresh database is at
-`http://127.0.0.1:5056/assets/1`. Stop and restart Flask, then GET the same path
-to see the original decision.
+The response is HTTP 201 with `status: needs_review` and two reasons. The API
+detects the MOV container and ProRes codec from the upload. Copy the response's
+`Location` path into this command. The first upload in a fresh database uses
+`/assets/1`.
+
+```sh
+curl -i http://127.0.0.1:5056/assets/1
+```
+
+The GET returns HTTP 200 and the original decision, including after a restart.
+Follow [file inspection](inspection.py#L11), [decision storage](app.py#L51),
+and the [integration test for the renamed MOV and saved decision](probe_checks.py#L44).
+
+### More examples
+
+With an FFmpeg build that includes `libx264`, try a file that meets the policy.
+The API saves it with HTTP 201 and `status: ready`.
+
+```sh
+ffmpeg -v error -f lavfi -i color=c=blue:s=160x96:r=24 -frames:v 12 \
+  -c:v libx264 -pix_fmt yuv420p "$samples/ready.mp4"
+curl -i -F "file=@$samples/ready.mp4" http://127.0.0.1:5056/assets/inspect
+```
 
 To try a failure, upload a plain-text file under a video filename. The API
 returns HTTP 422 and creates no asset record.
