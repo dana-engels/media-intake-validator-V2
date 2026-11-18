@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: API (Python ${{ matrix.python }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.14']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install application dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run API tests
+        run: python -m unittest -v
+
+  inspection:
+    name: Lint and real-file checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - name: Install verification dependencies
+        run: python -m pip install -r requirements.txt ruff
+      - name: Lint Python
+        run: python -m ruff check .
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ffmpeg
+      - name: Check media prerequisites
+        run: |
+          ffmpeg -version
+          ffprobe -version
+          ffmpeg -hide_banner -encoders > "$RUNNER_TEMP/ffmpeg-encoders.txt"
+          grep -w libx264 "$RUNNER_TEMP/ffmpeg-encoders.txt"
+          grep -w prores_ks "$RUNNER_TEMP/ffmpeg-encoders.txt"
+      - name: Run real-file checks
+        run: python -m unittest -v probe_checks

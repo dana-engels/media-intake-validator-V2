@@ -7,7 +7,10 @@ SQLite so a media operator can look them up later.
 ## Quickstart
 
 Use Python 3.10 or later and an FFmpeg build with `ffmpeg`, `ffprobe`, and
-the `prores_ks` encoder. Run these commands from the repository root.
+the `prores_ks` encoder. The commands below use a macOS/Linux shell and run
+from the repository root. SQLite is included with standard Python installations;
+no separate database server is needed. See [FFmpeg setup](#ffmpeg-setup) first
+if the tools are not on your PATH.
 
 ```sh
 python3 -m venv .venv
@@ -95,6 +98,9 @@ synthetic files.
 
 ## Verify
 
+Ruff and the media tools are verification prerequisites; only the Python
+requirements are needed for the declared-metadata API and its unit tests.
+
 ```sh
 .venv/bin/python -m unittest -v
 .venv/bin/python -m unittest -v probe_checks
@@ -103,4 +109,46 @@ synthetic files.
 ```
 
 The API unit tests can run without FFmpeg. The real-file tests generate
-synthetic clips and exercise `ffprobe` through the upload endpoint.
+synthetic clips and exercise `ffprobe` through the upload endpoint. They need
+both `libx264` and `prores_ks` encoders.
+
+### FFmpeg setup
+
+On Ubuntu 24.04 (the CI environment), install the distribution package:
+
+```sh
+sudo apt-get update
+sudo apt-get install --yes ffmpeg
+```
+
+On macOS with Homebrew already installed, use
+[`brew install ffmpeg`](https://formulae.brew.sh/formula/ffmpeg).
+For other systems, see the [FFmpeg download page](https://ffmpeg.org/download.html).
+Installation can change system packages; use the route appropriate to your machine.
+
+Check that the executables and fixture encoders are available before running
+the media examples or real-file tests:
+
+```sh
+ffmpeg -version
+ffprobe -version
+ffmpeg -hide_banner -encoders
+```
+
+The encoder list must include `prores_ks` for the renamed-MOV quickstart and
+`libx264` for the ready-MP4 example and full real-file suite. These tools are
+external programs, so installing the Python requirements alone does not supply them.
+
+### Automated checks
+
+The [CI workflow](.github/workflows/ci.yml) runs on pushes and pull requests
+to `main` and can also be run manually. It uses Ubuntu 24.04, runs API tests
+on Python 3.10 and 3.14, and runs Ruff and all four real-file checks on Python
+3.14. The media job installs FFmpeg and checks both encoders before testing.
+The tests use temporary SQLite databases and verify that saved decisions can
+be retrieved after creating a new application instance with the same database.
+
+Open [Actions → CI](https://github.com/dana-engels/media-intake-validator-V2/actions/workflows/ci.yml),
+select a run, and open a job to see its commands and results for that commit.
+Each run installs dependencies; a failed command fails its job. CI checks the
+local demonstration, not production deployment or every supported environment.
