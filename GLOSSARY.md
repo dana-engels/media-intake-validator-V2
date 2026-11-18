@@ -19,8 +19,11 @@ The container and codec identified from the uploaded video.
 
 **Ready**
 
-A recognized video whose metadata matches the example delivery policy.
+A decision whose declared or inspected metadata matches the example delivery
+policy. For declared metadata, this checks the caller's description without
+inspecting a file. Ready is not a full decode or integrity guarantee.
 
 **Needs review**
 
-A recognized video with at least one mismatch under the example policy.
+A decision whose declared or inspected metadata has at least one mismatch
+under the example delivery policy.

@@ -67,7 +67,9 @@ returns HTTP 422 and creates no asset record.
    decision, and its reasons. `GET /assets/<id>` reads that stored result.
 5. The original `POST /assets` endpoint still accepts declared metadata such
    as `{"filename":"clip.mp4","container":"mp4","video_codec":"h264"}`.
-   Records identify their metadata source as `declared` or `inspected`.
+   It checks the caller's metadata without inspecting file bytes. Records
+   identify their metadata source as `declared` or `inspected`; a declared
+   `ready` decision does not establish that a file was inspected.
 
 The [architecture decision record](docs/adr/0001-inspect-file-metadata.md)
 explains the choice to inspect bytes and retain the declared-metadata path.
@@ -81,9 +83,15 @@ explains the choice to inspect bytes and retain the declared-metadata path.
   the prototype grows beyond a local demonstration.
 
 The upload endpoint accepts a subset of MP4 and MOV files with one video
-stream. Requests are limited to 25 MiB and inspection to five seconds.
-`ready` means the metadata satisfies this example policy. It is not a full
-decode or integrity check. Run the demo locally with synthetic files.
+stream. `POST /assets/inspect` accepts requests only from loopback addresses
+(localhost); non-loopback clients receive HTTP 403. The entire upload request,
+including multipart overhead, is limited to 25 MiB; larger requests receive
+HTTP 413. The ffprobe subprocess has a five-second timeout. The declared-metadata
+endpoint does not apply these upload-specific access and request-size restrictions.
+
+`ready` means the record's declared or inspected metadata satisfies this example
+policy. It is not a full decode or integrity check. Run the demo locally with
+synthetic files.
 
 ## Verify
 
